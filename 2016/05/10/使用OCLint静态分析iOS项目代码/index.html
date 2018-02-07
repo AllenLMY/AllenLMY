@@ -1,0 +1,64 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>使用OCLint静态分析iOS项目代码 | 白衣沽酒</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/7.0.0/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">使用OCLint静态分析iOS项目代码</h1><a id="logo" href="/.">白衣沽酒</a><p class="description">Developer</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">使用OCLint静态分析iOS项目代码</h1><div class="post-meta">May 10, 2016<span> | </span><span class="category"><a href="/categories/Developer/">Developer</a></span></div><div class="post-content"><h2 id="关于OCLint-C"><a href="#关于OCLint-C" class="headerlink" title="关于OCLint C"></a>关于OCLint C</h2><p>OCLint是一个静态代码分析工具,通过检查C、C++和Objective - C代码,提高质量和减少缺陷,寻找潜在的问题,可能的错误,未使用的代码,复杂的代码,冗余代码,代码味道,不好的实践等等。</p>
+<h2 id="安装OCLint"><a href="#安装OCLint" class="headerlink" title="安装OCLint"></a>安装OCLint</h2><ol>
+<li><p>XCTool  </p>
+<pre><code>brew install xctool 
+</code></pre></li>
+<li><p>OCLint</p>
+<pre><code>brew tap oclint/formulae  
+brew install oclint  
+</code></pre></li>
+</ol>
+<h2 id="集成Xcode"><a href="#集成Xcode" class="headerlink" title="集成Xcode"></a>集成Xcode</h2><ol>
+<li>项目中添加target,Other-&gt;Aggregate,名字随便起,例如<code>OCLint</code></li>
+<li><p>选中这个target,切换到Build Phases,添加一个Run Script.<br> 这里贴下目前使用的脚本  </p>
+<pre><code>if [ -f ~/.bash_profile ]; then
+source ~/.bash_profile
+fi
+
+hash oclint &amp;&gt; /dev/null
+if [ $? -eq 1 ]; then
+echo &gt;&amp;2 &quot;oclint not found, analyzing stopped&quot;
+exit 1
+fi
+
+if [ ! -f &quot;${TARGET_TEMP_DIR}&quot;/xcodebuild.log ]; then
+echo &quot;[*] xcodebuild.log not found, possibly clean was performed&quot;
+echo &quot;[*] starting xcodebuild to rebuild the project..&quot;
+
+cd &quot;${SRCROOT}&quot;
+
+xcodebuild clean -configuration &quot;${CONFIGURATION}&quot; -project &quot;${PROJECT_NAME}&quot;.xcodeproj
+
+#build xcodebuild.log
+xcodebuild -configuration &quot;${CONFIGURATION}&quot; -project &quot;${PROJECT_NAME}&quot;.xcodeproj | tee &quot;${TARGET_TEMP_DIR}&quot;/xcodebuild.log
+fi
+
+cd &quot;${TARGET_TEMP_DIR}&quot;
+
+echo &quot;[*] transforming xcodebuild.log into compile_commands.json...&quot;
+#transform it into compile_commands.json
+oclint-xcodebuild
+
+echo &quot;[*] starting analyzing&quot;
+oclint-json-compilation-database -e Pods -- -p &quot;${TARGET_TEMP_DIR}&quot; \
+-max-priority-1=100000 \
+-max-priority-2=100000 \
+-max-priority-3=100000 \
+-disable-rule=InvertedLogic \
+-disable-rule=CollapsibleIfStatements \
+-disable-rule=UnusedMethodParameter \
+-disable-rule=LongLine \
+-disable-rule=LongVariableName \
+-disable-rule=ShortVariableName \
+-disable-rule=UselessParentheses \
+-disable-rule=IvarAssignmentOutsideAccessorsOrInit \
+-disable-rule=LongMethod \
+-disable-rule=CyclomaticComplexity \
+-disable-rule=TooManyParameters \
+-disable-rule=PreferEarlyExit | sed -E &apos;s/(.*\.(c|m{1,2}):[0-9]*:[0-9]*:)/\1 warning:/&apos;
+</code></pre><p> 具体规则可查看<a href="http://docs.oclint.org/en/stable/rules/index.html" target="_blank" rel="noopener">官方文档</a></p>
+</li>
+<li><p>直接build这个target,警告信息就是静态分析后的结果.如果项目较大,分析时间会很长.</p>
+</li>
+</ol>
+</div><div class="tags"><a href="/tags/OClint/">OClint</a><a href="/tags/静态分析/">静态分析</a></div><div class="post-nav"><a class="pre" href="/2016/05/12/App启动后服务初始化方案/">App启动后服务初始化方案</a><a class="next" href="/2016/05/10/Init/">Init</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://blog.limengyu.com.cn"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Developer/">Developer</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/iOS/" style="font-size: 15px;">iOS</a> <a href="/tags/Mac-OS/" style="font-size: 15px;">Mac OS</a> <a href="/tags/环境搭建/" style="font-size: 15px;">环境搭建</a> <a href="/tags/OClint/" style="font-size: 15px;">OClint</a> <a href="/tags/静态分析/" style="font-size: 15px;">静态分析</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2016/05/27/关于Xcode项目的Build-Number/">关于Xcode项目的Build Number</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/05/12/App启动后服务初始化方案/">App启动后服务初始化方案</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/05/10/使用OCLint静态分析iOS项目代码/">使用OCLint静态分析iOS项目代码</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/05/10/Init/">Init</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="http://www.example1.com/" title="site-name1" target="_blank">site-name1</a><ul></ul><a href="http://www.example2.com/" title="site-name2" target="_blank">site-name2</a><ul></ul><a href="http://www.example3.com/" title="site-name3" target="_blank">site-name3</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2018 <a href="/." rel="nofollow">白衣沽酒.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/3.2.5/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/fancybox/3.2.5/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
